@@ -1,0 +1,14 @@
+.venv/
+.venv_test/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+Python312/
+Python313/
+data.sqlite
+*.log
+*.xlsx
+*.json
+.DS_Store
+Thumbs.db

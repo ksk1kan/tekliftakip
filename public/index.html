@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>TeklifTakip</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/public/styles.css" />
+</head>
+<body>
+  <div id="login-screen" class="center-screen">
+    <form id="login-form" class="panel auth-panel">
+      <h1>TeklifTakip</h1>
+      <p class="muted">Teklif hafızanızı tek ekranda toplayın.</p>
+      <label>Kullanıcı Adı
+        <input name="username" type="text" required autocomplete="username" />
+      </label>
+      <label>Şifre
+        <input name="password" type="password" required autocomplete="current-password" />
+      </label>
+      <button type="submit" class="primary-btn full">Giriş Yap</button>
+      <div class="demo-box">
+        <strong>Varsayılan admin:</strong>
+        <div>Kullanıcı adı: <code>admin</code></div>
+        <div>Şifre: <code>admin123</code></div>
+      </div>
+      <p id="login-error" class="error-text"></p>
+    </form>
+  </div>
+
+  <div id="app-shell" class="hidden">
+    <aside class="sidebar">
+      <div class="brand">TeklifTakip</div>
+      <nav class="nav-list">
+        <button data-view="dashboard" class="nav-btn active">Dashboard</button>
+        <button data-view="customers" class="nav-btn">Müşteriler</button>
+        <button data-view="offers" class="nav-btn">Teklifler</button>
+        <button data-view="users" class="nav-btn admin-only">Kullanıcılar</button>
+        <button data-view="vehicles" class="nav-btn admin-only">Araçlar</button>
+        <button data-view="reports" class="nav-btn admin-only">Raporlar</button>
+        <button data-view="backup" class="nav-btn admin-only">Yedekleme</button>
+        <button data-view="logs" class="nav-btn admin-only">Loglar</button>
+      </nav>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar panel slim-topbar">
+        <div class="topbar-left">
+          <h2 id="view-title">Dashboard</h2>
+        </div>
+        <div class="topbar-right">
+          <div id="current-user" class="badge"></div>
+          <button id="logout-btn" class="ghost-btn">Çıkış Yap</button>
+        </div>
+      </header>
+
+      <div id="toast" class="toast hidden"></div>
+
+      <section id="view-dashboard" class="view-grid">
+        <div class="cards-grid moved-up">
+          <div class="stat-card panel"><span>Bugünkü Teklifler</span><strong id="stat-today-offers">0</strong></div>
+          <div class="stat-card panel"><span>Bekleyen Teklifler</span><strong id="stat-waiting-offers">0</strong></div>
+          <div class="stat-card panel"><span>Satış Olan</span><strong id="stat-won-offers">0</strong></div>
+          <div class="stat-card panel"><span>Kaçan</span><strong id="stat-lost-offers">0</strong></div>
+        </div>
+        <div class="dashboard-lists">
+          <div class="panel">
+            <div class="section-head"><h3>Son Teklifler</h3><button class="ghost-btn" data-switch-view="offers">Tekliflere Git</button></div>
+            <div class="table-wrap"><table><thead><tr><th>No</th><th>Müşteri</th><th>Tür</th><th>Durum</th><th>Fiyat</th><th>Teklifi Veren</th></tr></thead><tbody id="dashboard-offers"></tbody></table></div>
+          </div>
+          <div class="panel">
+            <div class="section-head"><h3>Son Müşteriler</h3><button class="ghost-btn" data-switch-view="customers">Müşterilere Git</button></div>
+            <div class="table-wrap"><table><thead><tr><th>No</th><th>Ad Soyad</th><th>Telefon</th><th>Tarih</th></tr></thead><tbody id="dashboard-customers"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-customers" class="view-grid hidden">
+        <div class="two-col">
+          <form id="customer-form" class="panel form-card">
+            <div class="section-head"><h3>Müşteri Formu</h3><button type="button" id="customer-reset" class="ghost-btn">Temizle</button></div>
+            <input type="hidden" name="id" />
+            <label>Ad Soyad<input type="text" name="full_name" required /></label>
+            <label>Telefon<input type="text" name="phone" required /></label>
+            <label>Not<textarea name="note" rows="4"></textarea></label>
+            <label class="checkbox"><input type="checkbox" name="is_active" checked /> Aktif</label>
+            <button class="primary-btn" type="submit">Kaydet</button>
+          </form>
+          <div class="panel">
+            <div class="section-head"><h3>Müşteri Listesi</h3></div>
+            <div class="filters-row">
+              <input type="text" id="customer-search" placeholder="Ad veya telefon ile ara" />
+              <button class="ghost-btn" id="customer-search-btn">Ara</button>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th>No</th><th>Ad Soyad</th><th>Telefon</th><th>Teklif</th><th>Son Teklif</th><th>İşlem</th></tr></thead><tbody id="customers-table"></tbody></table></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="section-head"><h3>Seçili Müşteri Geçmişi</h3></div>
+          <div id="customer-history-empty" class="empty-state">Bir müşteri seçildiğinde teklif geçmişi burada görünür.</div>
+          <div class="table-wrap hidden" id="customer-history-wrap"><table><thead><tr><th>Teklif No</th><th>Tür</th><th>Durum</th><th>Fiyat</th><th>Tarih</th><th>Teklifi Veren</th></tr></thead><tbody id="customer-history-table"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="view-offers" class="view-grid hidden">
+        <div class="two-col offers-layout">
+          <form id="offer-form" class="panel form-card">
+            <div class="section-head"><h3>Teklif Formu</h3><button type="button" id="offer-reset" class="ghost-btn">Temizle</button></div>
+            <input type="hidden" name="id" />
+            <div class="offer-type-box">
+              <h4>Müşteri Bilgileri</h4>
+              <div class="two-col compact">
+                <label>Ad Soyad<input type="text" name="customer_full_name" required /></label>
+                <label>Telefon<input type="text" name="customer_phone" required /></label>
+              </div>
+              <label>Müşteri Notu<textarea name="customer_note" rows="2"></textarea></label>
+            </div>
+            <div class="three-col">
+              <label>Teklif Türü<select name="offer_type" id="offer-type" required></select></label>
+              <label>Kanal<select name="channel" id="channel" required></select></label>
+              <label>Teklif Tarihi<input type="date" name="offer_date" required /></label>
+            </div>
+            <div class="three-col">
+              <label>Para Birimi<select name="currency" id="currency" required></select></label>
+              <label>Fiyat Tipi<select name="price_type" id="price-type" required></select></label>
+              <label>Fiyat<input type="number" step="0.01" name="price_amount" required /></label>
+            </div>
+            <label>Durum<select name="status" id="offer-status" required></select></label>
+
+            <div id="vehicle-fields" class="offer-type-box hidden">
+              <h4>Araç Detayları</h4>
+              <div class="three-col">
+                <label>Araç<select name="vehicle_id" id="vehicle-select"></select></label>
+                <label>Toplam Gün<input type="number" name="total_days" id="total-days" min="1" readonly /></label>
+                <div></div>
+              </div>
+              <div class="two-col compact">
+                <label>Alış Tarihi<input type="date" name="pickup_date" id="pickup-date" /></label>
+                <label>Teslim Tarihi<input type="date" name="return_date" id="return-date" /></label>
+              </div>
+              <div class="two-col compact">
+                <label>Teslim Yeri<input type="text" name="pickup_location" /></label>
+                <label>Dönüş Yeri<input type="text" name="return_location" /></label>
+              </div>
+            </div>
+
+            <div id="transfer-fields" class="offer-type-box hidden">
+              <h4>Transfer Detayları</h4>
+              <div class="three-col">
+                <label>Transfer Aracı<select name="transfer_vehicle_id" id="transfer-vehicle-select"></select></label>
+                <label>Transfer Tipi<select name="trip_type" id="trip-type-select"></select></label>
+                <label>Transfer Tarihi<input type="date" name="transfer_date" /></label>
+              </div>
+              <div class="two-col compact">
+                <label>Alış Noktası<input type="text" name="transfer_pickup_location" /></label>
+                <label>Varış Noktası<input type="text" name="transfer_dropoff_location" /></label>
+              </div>
+            </div>
+
+            <div id="tour-fields" class="offer-type-box hidden">
+              <h4>Tur Detayları</h4>
+              <div class="three-col">
+                <label>Tur Adı<input type="text" name="tour_name" /></label>
+                <label>Kişi Sayısı<input type="number" name="participant_count" min="1" /></label>
+                <label>Tur Tarihi<input type="date" name="tour_date" /></label>
+              </div>
+            </div>
+
+            <label>İç Not<textarea name="note" rows="4"></textarea></label>
+            <button class="primary-btn" type="submit">Kaydet</button>
+          </form>
+
+          <div class="panel">
+            <div class="section-head"><h3>Teklif Listesi</h3></div>
+            <div class="filters-grid offer-filters">
+              <input type="text" id="offer-search" placeholder="Müşteri, telefon, araç, tur..." />
+              <select id="offer-filter-status"></select>
+              <select id="offer-filter-type"></select>
+              <select id="offer-filter-user"></select>
+              <select id="offer-filter-vehicle"></select>
+              <input type="date" id="offer-filter-from" />
+              <input type="date" id="offer-filter-to" />
+              <button class="ghost-btn" id="offer-search-btn">Filtrele</button>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th>No</th><th>Müşteri</th><th>Tür</th><th>Detay</th><th>Kanal</th><th>Durum</th><th>Fiyat</th><th>İşlem</th></tr></thead><tbody id="offers-table"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-users" class="view-grid hidden admin-only">
+        <div class="two-col">
+          <form id="user-form" class="panel form-card">
+            <div class="section-head"><h3>Kullanıcı Formu</h3><button type="button" id="user-reset" class="ghost-btn">Temizle</button></div>
+            <input type="hidden" name="id" />
+            <label>Kullanıcı Adı<input type="text" name="username" required /></label>
+            <label>Görünen Ad<input type="text" name="display_name" required /></label>
+            <label>Rol<select name="role" id="user-role-select"></select></label>
+            <label>Şifre<input type="text" name="password" placeholder="Yeni kullanıcı için zorunlu" /></label>
+            <label class="checkbox"><input type="checkbox" name="is_active" checked /> Aktif</label>
+            <div class="button-row">
+              <button class="primary-btn" type="submit">Kaydet</button>
+              <button class="ghost-btn" type="button" id="reset-password-btn">Şifre Sıfırla</button>
+            </div>
+          </form>
+          <div class="panel">
+            <div class="section-head"><h3>Kullanıcılar</h3></div>
+            <div class="table-wrap"><table><thead><tr><th>No</th><th>Kullanıcı Adı</th><th>Görünen Ad</th><th>Rol</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="users-table"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-vehicles" class="view-grid hidden admin-only">
+        <div class="two-col">
+          <form id="vehicle-form" class="panel form-card">
+            <div class="section-head"><h3>Araç Formu</h3><button type="button" id="vehicle-reset" class="ghost-btn">Temizle</button></div>
+            <input type="hidden" name="id" />
+            <label>Araç Adı<input type="text" name="name" required /></label>
+            <label>Kapsam
+              <select name="scope" id="vehicle-scope-select">
+                <option value="vehicle">Araç Kiralama</option>
+                <option value="transfer">Transfer</option>
+              </select>
+            </label>
+            <label class="checkbox"><input type="checkbox" name="is_active" checked /> Aktif</label>
+            <button class="primary-btn" type="submit">Kaydet</button>
+          </form>
+          <div class="panel">
+            <div class="section-head"><h3>Araç Listesi</h3></div>
+            <div class="table-wrap"><table><thead><tr><th>No</th><th>Araç</th><th>Kapsam</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="vehicles-table"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-reports" class="view-grid hidden admin-only">
+        <div class="cards-grid">
+          <div class="stat-card panel"><span>Toplam Teklif</span><strong id="report-total-offers">0</strong></div>
+          <div class="stat-card panel"><span>Satış Olan</span><strong id="report-won-offers">0</strong></div>
+          <div class="stat-card panel"><span>Kaçan</span><strong id="report-lost-offers">0</strong></div>
+          <div class="stat-card panel"><span>Cevap Vermeyen</span><strong id="report-no-reply-offers">0</strong></div>
+          <div class="stat-card panel"><span>Beklemede</span><strong id="report-waiting-offers">0</strong></div>
+        </div>
+        <div class="three-panels">
+          <div class="panel"><div class="section-head"><h3>Türe Göre</h3></div><div id="report-by-type" class="simple-list"></div></div>
+          <div class="panel"><div class="section-head"><h3>Kullanıcıya Göre</h3></div><div id="report-by-user" class="simple-list"></div></div>
+          <div class="panel"><div class="section-head"><h3>Kanala Göre</h3></div><div id="report-by-channel" class="simple-list"></div></div>
+        </div>
+        <div class="panel">
+          <div class="section-head"><h3>Excel Dışa Aktarma</h3></div>
+          <div class="filters-grid export-grid">
+            <select id="export-filter-status"></select>
+            <select id="export-filter-type"></select>
+            <input type="date" id="export-filter-from" />
+            <input type="date" id="export-filter-to" />
+            <button id="export-offers-btn" class="primary-btn" type="button">Teklifleri Excel’e Aktar</button>
+            <button id="export-customers-btn" class="ghost-btn" type="button">Müşterileri Excel’e Aktar</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-backup" class="view-grid hidden admin-only">
+        <div class="two-col">
+          <div class="panel form-card">
+            <div class="section-head"><h3>JSON Yedekleme</h3></div>
+            <p class="muted">Tüm kullanıcılar, müşteriler, teklifler ve loglar tek dosyada dışa aktarılır.</p>
+            <button id="backup-export-btn" type="button" class="primary-btn">JSON Yedek İndir</button>
+          </div>
+          <form id="backup-import-form" class="panel form-card">
+            <div class="section-head"><h3>JSON Geri Yükle</h3></div>
+            <p class="muted">Seçtiğiniz yedek mevcut verilerin tamamının üzerine yazılır.</p>
+            <label>Yedek Dosyası<input type="file" name="backup" accept="application/json" required /></label>
+            <button type="submit" class="ghost-btn">Yedeği İçeri Al</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="view-logs" class="view-grid hidden admin-only">
+        <div class="panel">
+          <div class="section-head"><h3>İşlem Logları</h3></div>
+          <div class="table-wrap"><table><thead><tr><th>No</th><th>Kullanıcı</th><th>Varlık</th><th>İşlem</th><th>Tarih</th></tr></thead><tbody id="logs-table"></tbody></table></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/public/app.js"></script>
+</body>
+</html>
